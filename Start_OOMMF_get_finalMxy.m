@@ -31,7 +31,7 @@ for phi_ii = 1:length(phiangles)
     dataOMF = omf2matlab(initial_omf);
     cellscount = num2str(dataOMF.xnodes); 
     cellsize = num2str(dataOMF.xstepsize);
-    Ms0 = num2str( sqrt( dataOMF.dataOMF.datax(1,1,1)^2 + dataOMF.dataOMF.datay(1,1,1)^2 + dataOMF.dataOMF.dataz(1,1,1)^2 ) );
+    Ms0 = num2str( sqrt( dataOMF.datax(1,1,1)^2 + dataOMF.datay(1,1,1)^2 + dataOMF.dataz(1,1,1)^2 ) );
 
     % start dynamic calculations
     basename_torque = ['./Mxy/Mxy_phi' phi_deg '_H' Hext '_sigma' sigma_Gauss '_dM' deltaMs...

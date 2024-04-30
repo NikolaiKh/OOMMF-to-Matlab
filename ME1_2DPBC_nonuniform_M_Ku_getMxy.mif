@@ -1,0 +1,183 @@
+# MIF 2.2
+# Khokhlov NE
+# Description: Galfenol film with no variation of magnetic parameters
+# All units are SI
+
+# UserGuide p.197 (202):
+#After the first line ('# MIF 2.2'), there is considerable 
+#flexibility in the layout of the file. Generally near
+#the top of the file one places any
+#OOMMFRootDir, Parameter, and RandomSeed statements,
+#as desired.
+
+# Initialize random number generators with seed=1
+RandomSeed 1
+#RandomSeed Initializes both the Tcl and the C-library random number generators. If no
+#parameter is given, then a seed is drawn from the system clock. Otherwise, one integer
+#parameter may be specified to be used as the seed.
+
+set pi [expr {4*atan(1.0)}]
+set mu0 [expr {4*$pi*1e-7}]
+
+# parameters to be changed from command line
+
+# Angle between Hext and crystallografic direction (100), in degrees.
+# Hext will be horizontal, parallel to the x-axis in calcualtions
+Parameter phi_angle [ expr { 5 * $pi/180 } ]
+Parameter Ms0 1.0e3 ;# Ms in A/m
+Parameter Kuni 300 ;# in J/m^3
+Parameter deltaMs 0.1 ;#
+Parameter deltaKuni 0.271 ;#
+Parameter Hext 100 ;# external field in mT
+Parameter cellsize 50.0e-9 ;# cell size in calcualtions
+Parameter sigma_Gauss 100.0e-6 ;# in m. sigma of Gauss excitation in space
+Parameter timestep 100e-15 ;# in seconds
+Parameter stoptime 1500e-15 ;# in seconds
+# loading initial magnetization from the .omf file
+Parameter initial_omf ./Initial_states/init_phi5.0_H200-Oxs_MinDriver-Magnetization-00-0000054.omf
+Parameter cellscount 2048
+
+# set Ms0 [expr {$muMs0/$mu0}]
+Parameter basename [ format { ./Torques/torque_phiKu_%03.1f_deg } \ [ expr { $phi_angle *180/$pi } ] ] ;# set basename - Lecture 3, slide 37
+
+#Options are nedded for correct save for MatLab postprocessing
+#How to comvert the data from OOMMF to MatLab
+#https://thebrickinthesky.wordpress.com/2013/11/06/oommf-2/
+SetOptions [subst {
+	basename $basename
+	scalar_output_format %.12g 
+	scalar_field_output_format {text %.4g} 
+	scalar_field_output_meshtype regular 
+	vector_field_output_format {text %.12g}
+}]
+
+set xsize [expr {$cellscount*$cellsize}]
+set ysize [expr {$cellscount*$cellsize}]
+set zsize {1.0e-6}
+
+set xcell [subst {$cellsize}]
+set ycell [subst {$cellsize}]
+set zcell {1.0e-6}
+
+set ex [expr {cos($phi_angle)}] ;# unity vector along x-axis
+set ey [expr {sin($phi_angle)}] ;# unity vector along y-axis
+
+# normalization of sigma of Gauss excitation in space
+set sigma [expr {$sigma_Gauss/$xsize}]
+
+#Geometry of the problem:  simulation volume
+Specify Oxs_BoxAtlas:atlas [subst {
+       xrange {0 $xsize}
+       yrange {0 $ysize}
+       zrange {0 $zsize}
+}]  
+# Use the Tcl "subst" command to enable
+# variable and command substitution inside a Specify block.
+
+# ------------Grid---------------------
+Specify Oxs_RectangularMesh:mesh [subst {
+  cellsize { $xcell $ycell $zcell }
+  atlas :atlas
+}]
+
+# ------------------------------------
+
+#Exhange Energy
+Specify PBC_Exchange_2D {
+  A   13e-12
+}
+
+#define Gauss function
+# OOMMF takes x y z in range 0..1
+proc Gauss {Amp dAmp size x y z } {
+	set rx [expr {$x - 0.5}]
+    set ry [expr {$y - 0.5}]	
+#	set radius2 [expr {$rx*$rx+$ry*$ry}]
+	set result [expr {$Amp*(1. - $dAmp*exp(-($rx*$rx+$ry*$ry)/$size/$size/2.))}]
+#	if {$radius2 < 9*$size*$size} {return $result}
+	return $result
+}
+
+#   Uniaxial Anisotropy ###############
+Specify Oxs_UniaxialAnisotropy [subst {
+  K1  { Oxs_ScriptScalarField {
+    atlas :atlas
+    script { Gauss $Kuni $deltaKuni $sigma }
+ } }
+  axis {0.1 0.1 1}
+}]
+
+
+set Hx [subst {$Hext}]
+set Hz [expr {0.0*$Hext}]
+#External Field in mT due to multiplier
+Specify Oxs_UZeeman [subst {
+  multiplier [expr {0.001/$mu0}]
+  Hrange {   
+	 { $Hx  0   $Hz   $Hx  0  $Hz   0 } 
+  }
+}]
+
+#Demagnitization
+#Specify Oxs_Demag { }
+Specify PBC_Demag_2D { }
+
+#Main solution of LLG equation
+#The evolver to be used is cited inside the driver Specify block,
+#so the evolver must precede the driver in the MIF 2.1 file.
+# UserGuide p.198 (203) 
+
+#Parameters of LLG, time step and so on
+#See UserGuide Eq.(3) pp.70-...
+#  min_timestep $timestep
+#  max_timestep $timestep
+Specify Oxs_RungeKuttaEvolve:evolver [ subst {
+  alpha 0.01
+  method rkf54
+  min_timestep $timestep
+  max_timestep $timestep
+}]
+#gamma_G - gyromagnetic ratio. Default is 2.211e5 (??)
+#I've take gamma_G as 0.0176e9/2.0/$pi = 28.011e6 = 28 GHz/T
+#gamma_G 2.8011e6
+#!!!!!!gamma_G 28.011e6 gives unstability in time-domain!!!!!
+# pre-culculated equlibrium magnetization starts to precess!!
+
+
+# m0 is taken from the file ebove
+# stopping_time $stoptime
+# stopping_dm_dt 1e-9
+Specify Oxs_TimeDriver [subst {
+ evolver :evolver
+ stopping_time $stoptime
+ mesh :mesh
+ Ms { Oxs_ScriptScalarField {
+    atlas :atlas
+    script { Gauss $Ms0 $deltaMs $sigma }
+ } }
+
+ m0 { Oxs_FileVectorField {
+   atlas :atlas
+   file $initial_omf
+} }
+}]
+
+# Create destinations
+ 
+#Destination my_graph mmGraph
+Destination my_archive mmArchive
+Destination my_display mmDisp
+ 
+# Specify what should be saved. 
+# Options: Stage 1 / Step 5 / Done
+# Save to files - use archive: Schedule Oxs_TimeDriver::Magnetization my_archive Stage 1
+ 
+#Schedule DataTable my_graph Step 1
+# Schedule DataTable my_archive Done
+# Schedule Oxs_TimeDriver::OUTPUT my_archive Done
+Schedule Oxs_TimeDriver::Magnetization my_archive Step 200
+Schedule Oxs_TimeDriver::Magnetization my_display Step 200 
+#Schedule Oxs_TimeDriver::Magnetization my_display Done
+#Schedule Oxs_TimeDriver::Magnetization my_archive Done
+#Schedule Oxs_RungeKuttaEvolve:evolver:mxH my_display Step 1 
+#Schedule Oxs_RungeKuttaEvolve:evolver:mxH my_archive Done 

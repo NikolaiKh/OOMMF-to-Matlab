@@ -154,6 +154,27 @@ if ~isempty(matches)
     data.znodes = str2double(matches{1}{1});
 end
 
+%xstepsize
+pattern = '# xstepsize:\s([-+]?[\d.]+(?:e[-+]?\d+)?)';
+matches = regexp(file_content, pattern, 'tokens');
+if ~isempty(matches)
+    data.xstepsize = str2double(matches{1}{1});
+end
+
+%ystepsize
+pattern = '# ystepsize:\s([-+]?[\d.]+(?:e[-+]?\d+)?)';
+matches = regexp(file_content, pattern, 'tokens');
+if ~isempty(matches)
+    data.ystepsize = str2double(matches{1}{1});
+end
+
+%zstepsize
+pattern = '# zstepsize:\s([-+]?[\d.]+(?:e[-+]?\d+)?)';
+matches = regexp(file_content, pattern, 'tokens');
+if ~isempty(matches)
+    data.zstepsize = str2double(matches{1}{1});
+end
+
 %We have already the data about the grid, size and number of nodes,
 %thus we can create the arrays containing the coordinates of the points on the
 %grid. It is necesary here that the simulation grid is rectangular.

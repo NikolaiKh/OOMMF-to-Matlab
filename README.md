@@ -5,7 +5,7 @@ Files to start OOMMF calculations of ultrafast demagnetization and anisotropy qu
 
 ME1_2DPBC_initM.mif -- mif file to get initial magnetization distribution. Calculations with energy minimization
 
-ME1_2DPBC_nonuniform_M_Ku_getMxy.mif -- mif file to get magnetization dynamics and save Mz(t) to folder 'Mxy'
+ME1_2DPBC_nonuniform_M_Ku_getMxy.mif -- mif file to get magnetization dynamics and save Mz(t) to folder 'Mxy'. Options are nedded for correct save for MatLab postprocessing. More info: https://thebrickinthesky.wordpress.com/2013/11/06/oommf-2/
 
 Start_OOMMF_......m -- Maltab files to start corresponding mif-files
 

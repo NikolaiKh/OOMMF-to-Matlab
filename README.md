@@ -1,5 +1,5 @@
 # OOMMF-to-Matlab
-Files to start OOMMF calculations of ultrafast demagnetization and anisotropy quenching
+Files to start and convert OOMMF calculations of ultrafast demagnetization and anisotropy quenching
 
 ### Files description:
 
